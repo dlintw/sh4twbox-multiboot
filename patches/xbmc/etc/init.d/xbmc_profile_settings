@@ -19,8 +19,15 @@ if [ ! -d /media/hdd/.xbmc ]; then
 	fi
 fi
 
-rm -rf /.xbmc					# remove duplicated folder
-rm /.xbmc					# in case someone have a file name like that
+rm -rf /.xbmc			# remove duplicated folder
+[ -r /.xbmc ] && rm /.xbmc	# in case someone have a file name like that
 
 echo "Creating symbolic link /.xbmc -> /media/hdd/.xbmc"
 ln -s /media/hdd/.xbmc /.xbmc			# create symbolic link
+
+if [ -r /media/hdd/.xbmc/userdata/guisettings.xml -a -r /guisettings.tw.xml ] ; then
+  if [ ! -r /.xbmc.localized ] ; then
+    cp /guisettings.tw.xml /media/hdd/.xbmc/userdata/guisettings.xml 
+    touch /.xbmc.localized
+  fi
+fi
