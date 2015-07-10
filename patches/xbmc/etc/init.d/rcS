@@ -3,7 +3,7 @@
 echo "Initializing network interface..."
 ifconfig eth0 up
 
-busybox bash &
+#busybox bash &
 
 echo "Mounting filesystems..."
 /bin/mount -t proc proc /proc
