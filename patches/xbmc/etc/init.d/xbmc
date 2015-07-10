@@ -10,7 +10,7 @@ test -f /usr/lib/xbmc/xbmc.bin || exit 0
 case "$1" in
   start)
     echo -n "Starting XBMC"
-    start-stop-daemon --start --quiet --chuid root --exec /usr/lib/xbmc/xbmc.bin -- -l /var/run/lirc/lircd
+    start-stop-daemon --start --quiet --background --chuid root --exec /usr/lib/xbmc/xbmc.bin -- -l /var/run/lirc/lircd
     echo "."
     ;;
   stop)
@@ -26,7 +26,7 @@ case "$1" in
     start-stop-daemon --stop --quiet --user root --exec /usr/lib/xbmc/xbmc.bin
     sleep 1
     echo -n "Starting XBMC"
-    start-stop-daemon --start --quiet --chuid root  --exec /usr/lib/xbmc/xbmc.bin -- -l /var/run/lirc/lircd
+    start-stop-daemon --start --quiet --background --chuid root  --exec /usr/lib/xbmc/xbmc.bin -- -l /var/run/lirc/lircd
     echo "."
     ;;
   *)
