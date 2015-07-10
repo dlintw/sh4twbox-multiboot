@@ -1,0 +1,441 @@
+# http://www.in-ulm.de/~mascheck/various/ash/#busybox
+# http://linux.about.com/library/cmd/blcmdl1_ash.htm
+set -o errexit ; set -o nounset
+
+rootfs=`cat /proc/cmdline | sed 's/\s\s*/\n/g'|grep '^root='| cut -d= -f2`
+if [ "$rootfs" = "8:1" ] ; then
+  rootfs=/dev/sda1
+elif [ "$rootfs" = "8:2" ] ; then
+  rootfs=/dev/sda2
+fi
+
+trim_busybox() {
+  local f name
+  for f in ${DESTDIR}bin/* ${DESTDIR}sbin/* ; do
+    name=$(basename $f)
+    if [ -L $f -a $(basename $(realpath $f)) = busybox ] ; then
+      if [ -x ${DESTDIR}usr/bin/$name -o -x ${DESTDIR}usr/sbin/$name ] ; then
+        echo "remove duplicate busybox binary: $f"
+        rm $f
+      fi
+    fi
+  done
+}
+
+welcome() {
+  sh4twbox_ver=$(cat /etc/sh4twbox_version 2>/dev/null|head -1)
+  sh4twbox_ver=${sh4twbox_ver:-unknown}
+
+  echo "===== Disk Partition Listing (fdisk -l) ===================
+$(fdisk -l)
+===========================================================
+Hostname:$(hostname)
+Uptime  :$(uptime)
+Free Mem:$(free -m | grep '^-' | awk '{print $4,"MB"}')
+IP Addr :$(/sbin/ifconfig | grep cast | awk '{print $2}' \
+  | awk -F: '{printf "%s ",$2}')
+boot from $rootfs $(mount | grep '^/dev/root' | awk '{print $5}')
+last command:
+$(last 2>/dev/null|head -1)
+===========================================================
+"
+}
+
+format() { # [todev] [ext3/ext4/fat32/fat16]
+
+  local todev fstype
+  if [ $# -ge 1 ] ; then
+    todev=$1
+  else
+    read -p "Enter format device(default:/dev/${defdstdev}2) : " todev
+    todev=${todev:-/dev/${defdstdev}2}
+  fi
+  todev=${todev:-/dev/${defdstdev}2}
+  if [ $# -ge 2 ] ; then
+    fstype=$2
+  else
+    read -p "Enter file system type (ext3/4/fat16/32,default:ext4) : " fstype
+    fstype=${fstype:-ext4}
+  fi
+
+  echo "Info: `date` format $todev $fstype"
+
+  case $fstype in
+  ext3) mkfs.ext3 $todev ;;
+  ext4) mkfs.ext4 $todev ;;
+  fat16) mkdosfs -F16 -n bootwpda -v $todev ;;
+  fat32) mkdosfs -F32 -n bootwpda -v $todev ;;
+  *) echo "Err: unknown fstype $fstype" ; exit 1 ;;
+  esac
+
+  echo "Info: `date` format done"
+}
+
+get_default_dev() {
+  mkdir -p /tmp/defsrcdev /tmp/defdstdev
+  mount /dev/sda1 /tmp/defsrcdev || true
+  mount /dev/sdb1 /tmp/defdstdev || true
+  defsrcdev=sda
+  defdstdev=sdb
+  if [ -r /tmp/defdstdev/initrd.ub -a -r /tmp/defdstdev/uboot.sh ] ; then
+    defsrcdev=sdb
+    defdstdev=sda
+  fi
+  umount /tmp/defsrcdev || true
+  umount /tmp/defdstdev || true
+}
+inst() { # [todev] [boot_dev|none] [src_dev|none] [src_file|auto]
+  local todev bootdev srcdev srcfile tarfile ext rcfile
+  mkdir -p /tmp/src /tmp/boot /tmp/mnt_system
+
+  echo "Info: `date` inst() begin $*"
+
+  if [ $# -ge 1 ] ; then
+    todev=$1
+  else
+    read -p "target rootfs partition device(default:/dev/${defdstdev}2) : " todev
+    todev=${todev:-/dev/${defdstdev}2}
+  fi
+  mount $todev /tmp/mnt_system
+
+  if [ $# -ge 2 ] ; then
+    bootdev=$2
+  else
+    read -p "target boot partition or none(default:/dev/${defdstdev}1) : " bootdev
+    bootdev=${bootdev:-/dev/${defdstdev}1}
+  fi
+  if [ $bootdev != none ] ; then
+    mount $bootdev /tmp/boot
+  fi
+
+  if [ $# -ge 3 ] ; then
+    srcdev=$3
+  else
+    read -p "source device or none(default:/dev/${defsrcdev}1)?" srcdev
+    srcdev=${srcdev:-/dev/${defsrcdev}1}
+  fi
+  if [ $srcdev != "none" ] ; then
+    mount $srcdev /tmp/src
+    if ! ls /tmp/src/*.t?z 2>/dev/null ; then
+      echo "Warn: no *.t?z file in source device $srcdev"
+    fi
+  fi
+
+  tarfile=$(ls /tmp/src/*.t?z| tail -1)
+  if [ ! -r "${tarfile:-}" ] ; then
+      tarfile=none
+  fi
+  if [ $# -ge 4 ] ; then
+    srcfile=$4
+    if [ $srcfile = auto ] ; then
+      srcfile=$tarfile
+      if [ ! -r "$srcfile" ] ; then
+        srcfile=none
+      fi
+    fi
+  else
+    read -p "source file or none or D/L url(default:$tarfile) : " srcfile
+    srcfile=${srcfile:-$tarfile}
+  fi
+  echo "Info: `date` inst() D/L $srcfile begin"
+  if [ $(realpath $(which wget)) = /bin/busybox ] ; then
+    case "$srcfile" in
+      https://*)
+        echo "Warn:busybox wget replace https by http"
+        srcfile=http${srcfile#https}
+    esac
+  fi
+  case "$srcfile" in
+    *.tgz) ext=tgz;;
+    *.txz) ext=txz;;
+    none) ext=none;;
+    *) echo "Err: unkown extension of $srcfile" ; return;;
+  esac
+  echo "Info: list disk free space"
+  df -h $todev
+
+  echo "Info: `date` download & untar $srcfile begin"
+  case "$srcfile" in
+    http://*|ftp://*)
+      case $ext in
+      txz) wget -O - $srcfile | xz -dc | tar -C /tmp/mnt_system -xpf - ;;
+      tgz) wget -O - $srcfile | gzip -dc | tar -C /tmp -xpf - ;;
+      esac;;
+    none) ;;
+    *)
+      case $ext in
+      txz) tar -C /tmp/mnt_system -xpf $srcfile ;;
+      tgz) tar -C /tmp -xpf $srcfile ;;
+      esac;;
+  esac
+  echo "Info: `date` download & untar end"
+
+  # make sure led blue could setup OK.
+  if [ ! -r /tmp/mnt_system/usr/bin/ledctl.sh ] ; then
+    mkdir -p /tmp/mnt_system/usr/bin /tmp/mnt_system/etc
+    cp /usr/bin/ledctl.sh /tmp/mnt_system/usr/bin
+    rcfile=/tmp/mnt_system/etc/rc.local
+    touch $rcfile
+    if tail -1 $rcfile | grep 'exit 0' >/dev/null 2>&1 ; then
+       sed -i -e '$d' $rcfile
+    fi
+    echo "/usr/bin/ledctl.sh blue" >> $rcfile
+    chmod +x $rcfile
+  fi
+
+  if [ $bootdev != none ] ; then
+    echo "Info: `date` copying kernel & uboot.sh to $bootdev"
+    mv /tmp/mnt_system/boot/* /tmp/boot || true
+
+    if [ ! -r /tmp/boot/uboot.sh ] ; then
+      echo "Copy sh4twbox uboot.sh config"
+      cp /boot/uboot.sh /tmp/boot
+    fi
+    if [ ! -r /tmp/boot/vmlinux.ub ] ; then
+      echo "Copy default sh4twbox kernel"
+      cp /boot/vmlinux.ub /tmp/boot
+    fi
+  fi
+  echo "Info: `date` sync disk"
+  sync &
+  df -h $todev
+  wait
+  echo "Info:`date` unmounting $todev"
+  if [ $srcdev != "none" ] ; then
+    umount /tmp/src
+  fi
+  if [ $bootdev != none ] ; then
+    umount /tmp/boot
+  fi
+  umount /tmp/mnt_system
+  echo "Info: `date` install DONE"
+  sync
+}
+
+backup() {
+  echo "We use 'nc' for backup, for example
+To Server (192.168.1.1): nc -l -p 8888 > backup.dd
+From Host (192.168.1.5): dd if=/dev/sda bs=1M | nc 192.168.1.1 8888
+"
+  read -p "type 'nc -l -p 8888 > backup.dd' on server, Enter when ready:" x
+  read -p "Enter backup server IP: " ip
+  read -p "Enter backup device (default:/dev/sda): " bakdev
+  echo "Wait about 16 minutes, file size should be 8,027,897,856"
+  echo "Start Backup $(date)..."
+  dd if=${bakdev:-/dev/sda} bs=1M | nc $ip 8888
+  echo "End of Backup $(date)"
+}
+
+settime() {
+  echo "For example, 2013/12/31 23:59:58 input 123123592013.58"
+  read -p "Enter Time MMDDhhmmYYYY.ss: " newtime
+  date $newtime
+  echo "setup time as:" `date`
+}
+
+restore() {
+  echo "We use 'nc' for restore, for example
+To Host (192.168.1.5): nc -l -p 8888 | dd of=/dev/sda bs=1M
+From Server (192.168.1.1): cat backup.dd | nc 192.168.1.5 8888
+"
+  read -p "Enter restore device (default:/dev/sda): " bakdev
+  nc -l -p 8888 | dd of=${bakdev:-/dev/sda} bs=1M &
+  echo "type 'cat backup.dd | nc <sh4twbox_ip> 8888' on server"
+  echo "Wait about 100 minutes after you press Enter on server side..."
+  wait
+  echo "End of Restore $(date)"
+}
+
+myfdisk() { # <to_dev> <new/del/wipe> <partition> <fstype> <sizeM/auto>
+  # KNOWN BUG: if only one partition, delete 2nd partition will del first
+  echo "Info: myfdisk $*"
+  local to_dev fstype
+  to_dev="/dev/${1:-}"
+  case "${2:-}" in
+  new)
+    case "${4:-}" in
+      fat16)  fstype=6;;
+      fat32)  fstype="b";;
+      ext234) fstype=83;;
+      *) echo "Err: fstype of myfdisk() ${4:-}) not in fat16/fat32/ext234"
+        exit 1;;
+    esac
+    if [ "${5:-}" = auto ] ; then
+      echo "n\np\n$3\n\n\np\nw\n" | fdisk $to_dev
+    else
+      echo "n\np\n$3\n\n+$5M\nt\n$3\n$fstype\np\nw\n" | fdisk $to_dev
+    fi
+    ;;
+  wipe) echo "o\nd\n1\nd\n2\nd\n3\nd\n4\np\nw\n" | fdisk $to_dev;;
+  del) echo "d\n$3\np\nw\n" | fdisk $to_dev;;
+  *) echo "Err: unkown myfdisk() command $*" ; exit 1;;
+  esac
+  echo 1 > /sys/block/"${to_dev##*/}"/device/rescan
+}
+wipe() { # [todev] [0|1stPartitionSize]
+  local todev wipedev partcount
+#  echo "== before wipe =="
+#  fdisk -l
+  if [ $# -ge 1 ] ; then
+    todev=$1
+  else
+    read -p "Enter wipe device (default:/dev/${defdstdev}): " wipedev
+    todev=${wipedev:-/dev/${defdstdev}}
+  fi
+  if [ $# -ge 2 ] ; then
+    partcount=$2
+  else
+    read -p "FAT16 partition size in MB (default:16, 0:none)? " partcount
+    partcount=${partcount:-16}
+  fi
+
+  echo "Info: wipe begin $(date)"
+
+  echo "== removing all partitions"
+  echo "o\nd\n1\nd\n2\nd\n3\nd\n4\np\nw\n" \
+    | fdisk $todev
+  if [ $partcount = 0 ] ; then
+    echo "== creating one partition"
+    echo "n\np\n1\n\n\np\nw\n" | fdisk $todev
+  else
+    echo "== creating two partitions"
+    # 6 for FAT16, b for FAT32
+    echo "n\np\n1\n\n+${partcount}M\nt\n6\nn\np\n2\n\n\np\nw\n" \
+      | fdisk $todev
+  fi
+
+  echo "Info: wipe end $(date)"
+
+  echo 1 > /sys/block/"${todev##*/}"/device/rescan
+# echo "== After wipe =="
+#  fdisk -l
+
+}
+
+autofile() { # <dev> <file>  -- if file not exist quit sh4twbox
+  mkdir -p /tmp/autofile_fs
+  mount $1 /tmp/autofile_fs
+  if [ ! -r /tmp/autofile_fs/$2 ] ; then
+    umount $1
+    exit 0
+  fi
+  umount $1
+}
+
+umount_all() {
+  mount | grep '^/dev/sd' | awk '{ print "umount " $1}' | sh
+  echo "After umount_all()"
+  mount
+}
+
+autop1() { # <to_part> <src_dev> <name> # without format
+  local topart="${1:-}" srcdev="${2:-}" name="${3:-}"
+  if [ -z "$topart" ] ; then
+    read -p "target rootfs partition device(default:${defdstdev}2) : " topart
+    topart=${topart:-${defdstdev}2}
+  fi
+  if [ -z "$srcdev" ] ; then
+    read -p "source file put on device or none (default:/dev/${defsrcdev}1) : " srcdev
+    srcdev=${srcdev:-/dev/${defsrcdev}1}
+  fi
+  if [ -z "$name" ] ; then
+    read -p "source file or download URL (default:auto) : " name
+    name=${name:-auto}
+  fi
+  echo "$(date) RED LED indicates installing..."
+  ledctl.sh red
+  inst /dev/${topart} none ${srcdev} $name
+  echo "$(date) BLUE LED installed OK."
+  echo "Remember setup uboot.sh rootfs=/dev/${topart}"
+  ledctl.sh blue
+}
+
+autop2() { # <target_dev> <src_dev> <name> # including fdisk & format
+  local todev="${1:-}" srcdev="${2:-}" name="${3:-}"
+  if [ -z "$todev" ] ; then
+    read -p "target disk device(default:${defdstdev}) : " todev
+    todev=${todev:-${defdstdev}}
+  fi
+  if [ -z "$srcdev" ] ; then
+    read -p "source file put on device or none (default:/dev/${defsrcdev}1) : " srcdev
+    srcdev=${srcdev:-/dev/${defsrcdev}1}
+  fi
+  if [ -z "$name" ] ; then
+    read -p "source file or download URL (default:auto) : " name
+    name=${name:-auto}
+  fi
+  echo "$(date) RED LED indicates installing..."
+  ledctl.sh red
+  myfdisk $todev del 1 0 0
+  myfdisk $todev del 2 0 0
+  myfdisk $todev new 1 fat16 32
+  myfdisk $todev new 2 ext234 auto
+  sleep 2
+  format /dev/${todev}2 ext4
+  format /dev/${todev}1 fat16
+  inst /dev/${todev}2 /dev/${todev}1 ${srcdev} $name
+  echo "$(date) BLUE LED installed OK."
+  ledctl.sh blue
+}
+
+# batch commands
+while [ -n "${1:-}" ] ; do
+  case "$1" in
+    autofile) autofile $2 $3; shift 2;;
+    autop1) autop1 $2 $3 $4; shift 3;;
+    skiperr) set +o errexit ;;
+    stoperr) set -o errexit ;;
+    wipe) wipe $2 $3 2>&1 | tee -a /var/log/inst.log; shift 2;;
+    fdisk) myfdisk $2 $3 $4 $5 $6 ; shift 5;;
+    format) format $2 $3 2>&1 | tee -a /var/log/inst.log; shift 2;;
+    inst) inst $2 $3 $4 $5 2>&1 | tee -a /var/log/inst.log; shift 4;;
+    sleep) sleep $2; shift;;
+    led) ledctl.sh $2; shift;;
+    reboot) reboot ;;
+    exit) exit 0 ;;
+  esac
+  shift
+done
+set -o errexit
+
+welcome
+[ `id -u` -eq 0 ] || (echo "Err: should run as root" ; exit 1)
+get_default_dev
+while true ; do
+echo "=== sh4twbox v$sh4twbox_ver MENU ===
+  1) Back to Shell (default)
+  2) Set Time (`date`)
+  9) Reboot
+  p2) format first two partitions and install sh4twbox or other OS
+  p1) Replace one partition and install sh4twbox or other OS
+  h) show more choice options
+============ Please Enter Number: "
+  read x
+  case "${x:-1}" in
+    1) exit 0 ;;
+    2) settime ;;
+    3) backup ;;
+    4) restore ;;
+    5) wipe ;;
+    6) format ;;
+    7) inst ;;
+    8) set +o errexit ; inst ; set -o errexit ;;
+    9) reboot ;;
+    b) DESTDIR=/ ;  trim_busybox ;;
+    u) umount_all ;;
+    p2) autop2 ;;
+    p1) autop1 ;;
+    h) echo "
+  3) Backup (optional)
+  4) Restore (optional)
+  5) Wipe device/fdisk (optional)
+  6) Format partition (optional)
+  7) Install sh4TwBox to device
+  8) Install sh4TwBox to device (ignore error)
+  b) Remove duplicate busybox link in current root
+  u) Unmount all disk (before re-run failed install)
+";;
+     *) echo "Err:  Unkown answer: ${x-a}" ;;
+  esac
+done
+# vim:et sw=2 ts=2 ai syntax=sh:

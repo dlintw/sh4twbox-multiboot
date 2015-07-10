@@ -1,0 +1,21 @@
+# @brief https://github.com/dlintw/sh4twbox-multiboot
+# @author dlin.tw at gmail.com
+[ -r boot/mboot.log ] && tail -1 boot/mboot.log
+if [ -n "$1" ] ; then
+  d="$1"
+else
+  cd boot
+  echo "==Available Boot OS=="
+  ls -d [0-9]*
+  read -p "=== enter the number:" d
+fi
+set -e -x
+t=$(ls -d $d*)
+[ -d "$t" ]
+cp $t/* ..
+echo $(date '+%Y/%m/%d %H:%M:%S') $t >> mboot.log
+cat ../uboot.sh
+set +x
+read -p "Press [Enter] to reboot" d
+set +e -x
+cd / ; sync ; umount /dev/sda1 ; sync ; reboot
