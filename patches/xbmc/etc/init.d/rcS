@@ -1,0 +1,141 @@
+#!/bin/sh
+
+echo "Initializing network interface..."
+ifconfig eth0 up
+
+busybox bash &
+
+echo "Mounting filesystems..."
+/bin/mount -t proc proc /proc
+#/bin/mount -t tmpfs mdev /dev
+/bin/mount -t sysfs sysfs /sys
+/bin/mkdir -p /dev/pts
+/bin/mount -t devpts devpts /dev/pts -ogid=5,mode=620
+
+echo "Setting up mdev..."
+echo /sbin/mdev >/proc/sys/kernel/hotplug
+/sbin/mdev -s
+
+echo "Setting up front panel LEDs..."
+echo heartbeat	> /sys/class/leds/BLUE_LED/trigger
+echo netdev	> /sys/class/leds/RED_LED/trigger
+echo eth0	> /sys/class/leds/RED_LED/device_name
+echo disabled	> /sys/class/leds/RED_LED/link
+echo enabled	> /sys/class/leds/RED_LED/receive
+echo enabled	> /sys/class/leds/RED_LED/transmit
+
+if [ -e /var/etc/.firstboot ]; then	
+	echo "Rebuilding module dependencies..."
+	depmod -A
+   
+	echo "Configuring dbus..."
+	addgroup -S netdev
+	adduser -S -H messagebus
+
+	echo "Configuring Avahi..."
+	addgroup -S avahi
+	adduser -S -H avahi avahi
+   
+	chown -R root:root /media
+	chmod -R 777 /media
+   
+	rm /var/etc/.firstboot
+	touch /dev/.devfsd
+fi
+
+# Normal boot up script
+
+modprobe e2_proc
+
+echo "Initializing stmfb..."
+modprobe stmcore-display-sti7105
+modprobe stmfb display0=1920x1080-32@60:24m:12m:ntsc-m:yuv:yuv;
+			#display1=720x480-32@60:4m:0:ntsc-m:cvbs
+
+echo "Loading co-processor drivers..."
+
+if [ ! -f /boot/audio.elf ]; then
+	echo "Error: Audio firmware not found!"
+fi
+   
+if [ ! -f /boot/video.elf ]; then
+	echo "Error: Video firmware not found!"
+fi  
+
+echo "Loading audio firmware..."
+if [ -f /boot/audio_dts.elf ]; then
+	/bin/ustslave /dev/st231-1 /boot/audio_dts.elf
+else
+	/bin/ustslave /dev/st231-1 /boot/audio.elf
+fi
+
+echo "Loading video firmware..."
+/bin/ustslave /dev/st231-0 /boot/video.elf
+
+echo "Initializing embx..."
+modprobe embxshell
+modprobe embxmailbox mailbox0=0xfe211000:136:set2 mailbox1=0xfe212000:0 ;
+modprobe embxshm mailbox0=shm:0:7:0x60000000:0:256:256:0:512:0x40000000:0x10000000
+modprobe mme_host transport0=shm
+
+#insmod $MODDIR/embxmailbox.ko mailbox0=0xFE211000:136:set2 mailbox1=0xFE212000:137:set2
+#insmod $MODDIR/embxshm.ko mailbox0=TransportVideo0:0:3:0x00000000:0:16:16:0:256:0x40000000:0x40000000 mailbox1=TransportAudio1:0:5:0x00000000:0:16:16:0:256:0x40000000:0x40000000
+#insmod $MODDIR/mme_host.ko transport0=TransportVideo0 transport1=TransportAudio1*/
+
+echo "Initializing AVS..."
+modprobe avs type=avs_pio
+
+player=`cat /proc/stb/player/version`
+player=`cat /proc/stb/player/version | awk '{ print substr( $0, length($0) - 2, length($0) ) }'`
+echo "Initializing player $player..."
+
+modprobe mmelog
+modprobe ksound
+modprobe p2div64
+modprobe stm_v4l2
+if [ $player -gt 131 ]; then
+	modprobe stmvout
+	modprobe stmvbi
+fi
+modprobe pseudocard
+
+#you can change t to c to switch the tuner type
+modprobe spark7162 UnionTunerType=t
+if [ $player -gt 131 ]; then
+	# Full feature pti
+	modprobe pti waitMS=20 videoMem=4096
+	if [ $?=='2' ]; then
+		# Simple pti
+		modprobe pti
+	fi
+	modprobe stm_monitor
+	modprobe stmsysfs
+	modprobe stmdvb
+else
+	modprobe pti
+	modprobe stmdvb
+	modprobe stm_monitor
+fi
+modprobe player2
+modprobe sth264pp
+modprobe stmalloc
+modprobe platform
+modprobe silencegen
+modprobe cec activemode=1
+
+mknod /dev/rc c 147 1 
+mknod /dev/sci0 c 169 0
+mknod /dev/sci1 c 169 1 
+
+#/bin/evremote2 10 100 &
+
+stfbcontrol a 255
+
+/usr/sbin/inetd
+
+(until false; do echo 1 > /proc/sys/vm/drop_caches; sleep 2; done) &
+	mknod /dev/dvb/adapter0/frontend1 c 212 19
+	mknod /dev/dvb/adapter0/frontend2 c 212 35
+	mknod /dev/dvb/adapter0/frontend3 c 212 51
+
+#never reached

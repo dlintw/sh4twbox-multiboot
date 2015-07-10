@@ -1,0 +1,26 @@
+#!/bin/sh
+#
+# This is an init script for Debian Sid
+# Copy it to /etc/init.d/xbmc_profile_settings and type
+# > update-rc.d xbmc_profile_settings defaults 89
+#
+
+echo "Detecting XBMC profile setting folder..."
+if [ ! -d /media/hdd/.xbmc ]; then
+	echo "No .xbmc folder is found at /media/hdd"
+	if [ -d /.xbmc ]; then
+		echo "An existing .xbmc folder is found at / . It must be an upgrade installation"
+		echo "Moving /.xbmc to /media/hdd/.xbmc ..."
+		mv /.xbmc/ /media/hdd/.xbmc/	# upgrade from older version, move profile setting folder to new location
+	else
+		echo "No .xbmc folder is found at / , either. It must be an new installation"
+		echo "Creating .xbmc folder at /media/hdd ..."
+		mkdir -p /media/hdd/.xbmc	# a clean installation, no existing profile setting to be moved, so create empty folder at correct location
+	fi
+fi
+
+rm -rf /.xbmc					# remove duplicated folder
+rm /.xbmc					# in case someone have a file name like that
+
+echo "Creating symbolic link /.xbmc -> /media/hdd/.xbmc"
+ln -s /media/hdd/.xbmc /.xbmc			# create symbolic link
