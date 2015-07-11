@@ -1,0 +1,13 @@
+# @brief backup script patches in tarball
+# @author dlin.tw at gmail.com
+#
+# Usage: cd / ; backup.patch
+f=$(mktemp)
+find . -name '*.orig' > $f 2>/dev/null
+tar -cpv -T $f -f patch.orig.tar
+
+f2=$(mktemp)
+sed 's/.orig$//' $f >> $f2
+tar -cpv -T $f2 -f patch.tar
+ls -l patch*.tar
+echo "* backup DONE *"

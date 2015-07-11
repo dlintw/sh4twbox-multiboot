@@ -1,8 +1,0 @@
-f=$(mktemp)
-f2=$(mktemp)
-#cd /
-find . -name '*.orig' 2>/dev/null | tee $f > $f2
-sed 's/.orig$//' $f >> $f2
-tar -cpv -T $f2 -f patch.tar
-ls -l patch.tar
-echo "* backup DONE *"
