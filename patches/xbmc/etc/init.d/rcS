@@ -3,8 +3,6 @@
 echo "Initializing network interface..."
 ifconfig eth0 up
 
-#busybox bash &
-
 echo "Mounting filesystems..."
 /bin/mount -t proc proc /proc
 #/bin/mount -t tmpfs mdev /dev
@@ -41,6 +39,9 @@ if [ -e /var/etc/.firstboot ]; then
    
 	rm /var/etc/.firstboot
 	touch /dev/.devfsd
+
+	mkdir -p /usr/lib/firmware
+	cp /boot/*.elf /usr/lib/firmware
 fi
 
 # Normal boot up script
@@ -54,23 +55,22 @@ modprobe stmfb display0=1920x1080-32@60:24m:12m:ntsc-m:yuv:yuv;
 
 echo "Loading co-processor drivers..."
 
-if [ ! -f /boot/audio.elf ]; then
-	echo "Error: Audio firmware not found!"
-fi
-   
-if [ ! -f /boot/video.elf ]; then
-	echo "Error: Video firmware not found!"
-fi  
 
 echo "Loading audio firmware..."
-if [ -f /boot/audio_dts.elf ]; then
-	/bin/ustslave /dev/st231-1 /boot/audio_dts.elf
+if [ -f /usr/lib/firmware/audio_dts.elf ]; then
+  /bin/ustslave /dev/st231-1 /usr/lib/firmware/audio_dts.elf
+elif [ -f /usr/lib/firmware/audio.elf ]; then
+  /bin/ustslave /dev/st231-1 /usr/lib/firmware/audio.elf
 else
-	/bin/ustslave /dev/st231-1 /boot/audio.elf
+  echo "Error: Audio firmware not found!"
 fi
 
 echo "Loading video firmware..."
-/bin/ustslave /dev/st231-0 /boot/video.elf
+if [ -r /usr/lib/firmware/video.elf ] ; then
+  /bin/ustslave /dev/st231-0 /usr/lib/firmware/video.elf
+else
+  echo "Error: Video firmware not found!"
+fi
 
 echo "Initializing embx..."
 modprobe embxshell
@@ -139,3 +139,4 @@ stfbcontrol a 255
 	mknod /dev/dvb/adapter0/frontend3 c 212 51
 
 #never reached
+# vim:et sw=2 ts=2 ai

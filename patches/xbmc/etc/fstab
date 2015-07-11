@@ -1,8 +1,10 @@
 # /etc/fstab: static file system information.
 #
 # <file system> <mount point>   <type>  <options> 	<dump>  <pass>
-/dev/root	/		auto	defaults	0 0
-#/dev/sda10	/hdd		auto	defaults	0 0
+/dev/root	/		auto	defaults,noatime	0 0
+#LABEL=BOOT /boot 		auto	defaults,noauto	0 0
+/dev/sda1 /boot 		auto	defaults,noatime,noauto	0 0
+#/dev/sda3	/hdd		auto	defaults	0 0
 #/dev/sda5	swap		swap	defaults	0 0
 
 proc		/proc		proc	defaults	0 0
