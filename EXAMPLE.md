@@ -1,6 +1,6 @@
 # Example for multiple boot
 
-Here is a full steps from a original NextVOD to multiple OS.
+Here is a full steps from a original [NextVOD][nextvod] to multiple OS.
 
 ---
 ## Step 1. Update Das U-boot
@@ -25,11 +25,11 @@ For example:
     Units = cylinders of 15314 * 512 = 7840768 bytes
 
        Device Boot      Start         End      Blocks  Id System
-    /dev/sda1    +256M      1  ext3    34      260307   6 FAT16  
+    /dev/sda1    +256M      1          34      260307   6 FAT16  
     /dev/sda2    +256M     35          68      260338  83 Linux
     /dev/sda3    +1024M    69         200     1010724  83 Linux
     /dev/sda4             201        1023     6301711   5 Extended
-    /dev/sda5    +256M    201  SWAP   234      260307  82 Linux swap
+    /dev/sda5    +256M    201         234      260307  82 Linux swap
     /dev/sda6    +256M    235         268      260307  83 Linux
     /dev/sda7    +1024M   269         400     1010693  83 Linux
     /dev/sda8    +1024M   401         532     1010693  83 Linux
@@ -70,14 +70,13 @@ Assume (sda is the internal partition, sdb is the external partition)
 
 ### Install Recovery OS
 
-ref:
-
- * [uboot.sh](http://github.com/dlintw/sh4twbox-multiboot/example/boot/1_recovery)
 
     # mkdir -p boot/1_recovery
     # cd boot/1_recovery
     # cp /mnt/sdb1/initrd.ub  .
     # vi uboot.sh   
+
+ * [uboot.sh content](http://github.com/dlintw/sh4twbox-multiboot/example/boot/1_recovery)
 
 ---
 ## Step 4. Install XBMC for video/audio play on HDMI TV
@@ -85,10 +84,13 @@ ref:
 Boot to recovery OS and 
 Get install file from Han Yu's development [site](http://chinghanyu.twbbs.org/redmine/projects/open-duckbox-project-on-sh4-platform/files).
 
+
  * [XBMC@NextVOD Document](http://chinghanyu.twbbs.org/redmine/projects/open-duckbox-project-on-sh4-platform/wiki)
- * [uboot.sh](http://github.com/dlintw/sh4twbox-multiboot/example/boot/2_xbmc)
+ * [uboot.sh content](http://github.com/dlintw/sh4twbox-multiboot/example/boot/2_xbmc)
  * [useful patches](http://github.com/dlintw/sh4twbox-multiboot/example/patches/xbmc)
  * [setup tutorial](http://samantw.com/nextvod-xbmc-addons-chinese/)
+
+Commands:
 
     # mount /dev/sda2 /mnt/sda2
     # cd /mnt/sda2
@@ -100,6 +102,7 @@ Get install file from Han Yu's development [site](http://chinghanyu.twbbs.org/re
     # cd boot/2_xbmc
     # cp /mnt/sda2/boot/uImage .
     # vi uboot.sh   
+
 
 After patch, you'll see English menu on first reboot.
 Reboot it for two more times, you'll see preset Chinese menu.
@@ -113,6 +116,9 @@ Debian require 415M disk space for installation.
 
  * [Official site](http://ftp.yzu.edu.tw/linux/debian-sh4-for-nextvod/handbook.php)
  * [uboot.sh](http://github.com/dlintw/sh4twbox-multiboot/example/boot/3_debian)
+
+Commands:
+
     # mount /dev/sda3 /mnt/mnt_system  # trick to extract old NextVOD format
     # cd /mnt/mnt_system  
     # wget http://ftp.yzu.edu.tw/linux/debian-sh4-for-nextvod/download/target.tgz
@@ -136,6 +142,8 @@ Download from sh4twbox google code site
  * [uboot.sh](http://github.com/dlintw/sh4twbox-multiboot/example/boot/6_sh4twbox)
  * [useful patches](http://github.com/dlintw/sh4twbox-multiboot/example/patches/sh4twbox)
 
+Commands:
+
     # mount /dev/sda6 /mnt/sda6
     # cd /mnt/sda6
     # wget http://sh4twbox.googlecode.com/files/sh4twbox-0.9.2.txz
@@ -155,6 +163,9 @@ You could login by ssh after reboot. (user: *root* password *twpdatwpda*)
 Download from sh4twbox google code site (525M disk space required)
 
  * [uboot.sh](http://github.com/dlintw/sh4twbox-multiboot/example/boot/7_fedora)
+
+Commands:
+
     # mount /dev/sda7 /mnt/mnt_system  # trick to extract old NextVOD format
     # cd /mnt/mnt_system  
     # wget http://sh4twbox.googlecode.com/files/target.fc9.20130725.tgz
@@ -176,6 +187,9 @@ You could login by ssh after reboot. (user: *root* password *la.t28.net*)
 Download from sh4twbox google code site (525M disk space required)
 
  * [uboot.sh](http://github.com/dlintw/sh4twbox-multiboot/example/boot/7_fedora)
+
+Commands:
+
     # mount /dev/sda7 /mnt/mnt_system  # trick to extract old NextVOD format
     # cd /mnt/mnt_system  
     # wget http://sh4twbox.googlecode.com/files/target.fc9.20130725.tgz
@@ -198,6 +212,8 @@ Download from sh4twbox google code site (339M disk space required)
 
  * [uboot.sh](http://github.com/dlintw/sh4twbox-multiboot/example/boot/8_arch)
 
+Commands:
+
     # mount /dev/sda8 /mnt/sda8
     # cd /mnt/sda8
     # wget http://sh4twbox.googlecode.com/files/arch.20131215.txz  
@@ -211,6 +227,7 @@ Download from sh4twbox google code site (339M disk space required)
 
 You could login by ssh after reboot. (user: *root* password *twpdatwpda*)
 
+[nextvod]: https://zh.wikipedia.org/wiki/%E7%B6%B2%E6%A8%82%E9%80%9A
 [sh4twbox]: http://www.twpda.com/2013/09/sh4twbox-07.html
 [xbmc]: http://chinghanyu.twbbs.org/redmine/projects/open-duckbox-project-on-sh4-platform/wiki
 [debian]: http://ftp.yzu.edu.tw/linux/debian-sh4-for-nextvod

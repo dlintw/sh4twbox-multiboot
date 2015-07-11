@@ -48,7 +48,8 @@ Replace the SDX with sda1 or sdb1.
     # mount /dev/SDX /boot
     # cd /boot
 
-It should following naming rule <partition_number>\_<partition_name>. Replace the KERNEL with vmlinux.ub or uImage...
+### create new directory
+It should following naming rule <partition\_number>\_<partition\_name>. Replace the KERNEL with vmlinux.ub or uImage...
 
     # mkdir -p boot/9_buildroot     
     # vi boot/9_buildroot/uboot.sh
@@ -59,24 +60,25 @@ It should following naming rule <partition_number>\_<partition_name>. Replace th
     # echo "/dev/SDX /boot auto defaults,noauto 0 0" >> /etc/fstab
     
 ---
-# Installation for mboot script
+## Installation for mboot script
 
     # mkdir -p /mnt/sda1
     # mount /dev/sda1 /mnt/sda1
     # cd /mnt/sda1  # to recovery partition
 
     ## wget https://raw.githubusercontent.com/dlintw/sh4twbox-multiboot/master/mboot
-    ## because busybox's wget can not get https, we use dropbox.
+    ## because busybox's wget can not get https, we use dropbox's space.
     # wget http://www.dropbox.com/s/7pfdvzks3h8clwc/mboot 
 
     # chmod +x mboot
    
 ---
-# Multiple os boot installation example
+## Multiple os boot installation example
 
  * See the installation guide on [sh4twbox][sh4twbox].
  * See [EXAMPLE.md](/EXAMPLE.md)
 
+[nextvod]: https://zh.wikipedia.org/wiki/%E7%B6%B2%E6%A8%82%E9%80%9A
 [sh4twbox]: http://www.twpda.com/2013/09/sh4twbox-07.html
 [xbmc]: http://chinghanyu.twbbs.org/redmine/projects/open-duckbox-project-on-sh4-platform/wiki
 [debian]: http://ftp.yzu.edu.tw/linux/debian-sh4-for-nextvod

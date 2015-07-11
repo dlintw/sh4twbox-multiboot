@@ -1,6 +1,6 @@
 # sh5twbox-multiboot 網樂通多重開機 (中文)
 
-本專案示範 網樂通 上多重開機設定, 主要原理是透過 UBOOTWPDA 
+本專案示範[網樂通][nextvod] 上多重開機設定, 主要原理是透過 UBOOTWPDA 
 及一個簡單的批次檔案(mboot).
 
 我們可以透過 mboot 及本專案的修正批次檔來測試各個跑在網樂通上面的作業系統:
@@ -41,7 +41,7 @@
 
 假設已經安裝了新作業系統(如: buildroot)在其中一個分割區(如: /dev/sda9).  接著重新開機進入恢復分割區(recovery).
 
-### 將相關分割驅連結
+### 將相關分割區連結
 
 將 SDX 以 sda1 或 sdb1 取代.
 
@@ -49,6 +49,8 @@
     # mount /dev/sda9 /mnt/src
     # mount /dev/SDX /boot
     # cd /boot
+
+### 新建一個目錄
 
 使用命名規則 <分割區編號>\_<分割區作業系統名稱>. 將 KERNEL 更換為 vmlinux.ub 或 uImage...
 
@@ -68,14 +70,21 @@
     # cd /mnt/sda1  # 安裝到 recovery 分割區
     
     ## wget https://raw.githubusercontent.com/dlintw/sh4twbox-multiboot/master/mboot
-    ## because busybox's wget can not get https, we use dropbox.
+    ## 因為 busybox 的 wget 無法抓取 https, 改用 dropbox 空間下載.
     # wget http://www.dropbox.com/s/7pfdvzks3h8clwc/mboot 
 
     # chmod +x mboot
     
-# 安裝多個作業系統範例
+## 安裝多個作業系統範例
 
-    * 參見 http://www.twpda.com/2013/09/sh4twbox-07.html to boot into sh4twbox.
-    * 參見e EXAMPLE.md
+    * 請參考 [sh4twbox 上的安裝方式][sh4twbox].
+    * 請參考 [EXAMPLE.md](/EXAMPLE.md)
+
+[nextvod]: https://zh.wikipedia.org/wiki/%E7%B6%B2%E6%A8%82%E9%80%9A
+[sh4twbox]: http://www.twpda.com/2013/09/sh4twbox-07.html
+[xbmc]: http://chinghanyu.twbbs.org/redmine/projects/open-duckbox-project-on-sh4-platform/wiki
+[debian]: http://ftp.yzu.edu.tw/linux/debian-sh4-for-nextvod
+[fedora]: https://code.google.com/p/sh4twbox/downloads/detail?name=target.fc9.20130725.tgz&can=2&q=fedora#makechanges
+[arch]: http://www.twpda.com/2013/04/arch-linux.html
 
 [//]: # ( vim:set et sw=4 ts=4 ai: )
