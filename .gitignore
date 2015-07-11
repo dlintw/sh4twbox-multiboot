@@ -1,0 +1,9 @@
+*.o
+*.6
+*.8
+_obj
+_cgo_export.h
+.svn
+.hg
+!.gitignore
+*.tar
