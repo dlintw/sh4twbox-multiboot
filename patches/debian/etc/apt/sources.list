@@ -7,4 +7,4 @@ deb-src http://debian.csie.ntu.edu.tw/debian/ wheezy main contrib non-free
 deb [arch=sh4] http://download.si-linux.co.jp/debian-sh/wheezy-sh4/ wheezy main contrib non-free
 deb-src http://download.si-linux.co.jp/debian-sh/wheezy-sh4/ wheezy main contrib non-free
 
-deb http://forum.cse.yzu.edu.tw/debian-sh4/ wheezy all
+deb http://ftp.yzu.edu.tw/Linux/debian-sh4-for-nextvod/ wheezy all
